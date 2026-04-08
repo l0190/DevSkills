@@ -10,11 +10,3 @@ This repository is dedicated to building **Agent-based development infrastructur
 | --- | --- | --- | --- |
 | OODA-debugger | LLM-powered automated debugging skill based on the OODA loop (Observe→Judge→Decide→Execute) to locate and fix bugs | [中文](assets/CN/debugger.md) \| [English](assets/EN/debugger.md) | [Link](.claude/skills/OODA-debugger/) |
 | call-graph | Python function call tree generator for visualizing execution flow and code structure | [中文](assets/CN/skills.md) \| [English](assets/EN/skills.md) | [Link](.claude/skills/call-graph/) |
-
-## Join the Community
-
-We have an active community group. Join us to explore more possibilities of Agent-based development:
-
-- **QQ Group**: 1032235086
-
-Looking forward to your participation — let's push the evolution of Agent-based development infrastructure together!
