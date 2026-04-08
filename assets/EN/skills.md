@@ -18,7 +18,7 @@ your-skill-name/
 
 ## Harness Composition
 
-OODA Loop: Observe - Orient - Decide - Act
+OODA Loop: Observe - Objective - Decide - Act
 
 Harness (the cockpit for agents) = Tools + Knowledge + Observation + Action Interfaces + Permissions
 

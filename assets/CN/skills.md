@@ -10,11 +10,20 @@ your-skill-name/
 └── assets/           # 可选,模板、字体、图标等
     └── report-template.md
 
+## Skills迁移方式
+迁移方式:将skill移动到AI编程工具对应的skills存放目录下
+
+| 工具       | Skills 存放目录        |
+| ------------ | -------------------- |
+| ClaudeCode | `.claude/skills/`  |
+| OpenCode   | `opencode/skills/` |
+| Copilot    | `.github/skills`   |
+
 - references下面可以添加新的文件夹,只需要在SKILL.md中进行说明即可
 - 告诉AI应该怎么做,但是更应该告诉他什么不要做(并附上不要做的理由)
 
 ## Harness 组成
-OODA循环:观察-判断-决策-行动
+OODA循环:观察(Observe)-确认目标(Objective)-决策(Decide)-执行(Act)
 Harness(给agent的驾驶舱) = Tools + Knowledge + Observation + Action Interfaces + Permissions
 - Tools(Function Call):
     - 文件读写、shell(执行)、网络获取/搜索

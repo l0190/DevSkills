@@ -1,38 +1,20 @@
-## Skill Structure
-A skill is essentially a folder containing scripts, documents, and assets.
+[简体中文](README.md) | **English**
 
-```bash
-skill-name/
-├── SKILL.md          # Required, main entry file
-├── scripts/          # Optional, executable scripts (bash preferred)
-│   ├── process_data.py
-│   └── validate.sh
-├── references/       # Optional, on-demand loaded documents
-│   ├── api-guide.md
-│   └── examples/
-└── assets/           # Optional, templates, fonts, icons, etc.
-    └── template.md
-```
+# Agent-based Development Infrastructure
 
-## Skill Migration
-To migrate a skill, move it to the corresponding skills directory of your AI coding tool.
+This repository is dedicated to building **Agent-based development infrastructure**, exploring how to deeply integrate LLM-driven intelligent Agents into every stage of software development. Through reusable Skills (skill plugins), we distill best practices into standardized tools, enabling AI Agents to observe, judge, decide, and execute like seasoned engineers — truly realizing intelligent development workflows.
 
-| Tool         | Skills Directory      |
-| -------------- | -------------------- |
-| ClaudeCode   | `.claude/skills/`  |
-| OpenCode     | `opencode/skills/` |
-| Copilot      | `.github/skills`   |
+## Published Skills
 
-## Available Skills
+| Skill | Description | Design Docs | Skill Entry |
+| --- | --- | --- | --- |
+| OODA-debugger | LLM-powered automated debugging skill based on the OODA loop (Observe→Judge→Decide→Execute) to locate and fix bugs | [中文](assets/CN/debugger.md) \| [English](assets/EN/debugger.md) | [Link](.claude/skills/OODA-debugger/) |
+| call-graph | Python function call tree generator for visualizing execution flow and code structure | [中文](assets/CN/skills.md) \| [English](assets/EN/skills.md) | [Link](.claude/skills/call-graph/) |
 
-| Skill | Description | Link |
-| ------------ | -------------------- | ---- |
-| OODA-debugger | LLM-driven automated debugging skill based on the OODA loop | [CN](.claude/skills-CN/OODA-debugger/) \| [EN](.claude/skills/OODA-debugger/) |
-| call-graph | Python function call tree generator | [CN](.claude/skills-CN/call-graph/) \| [EN](.claude/skills/call-graph/) |
+## Join the Community
 
-## Documentation
+We have an active community group. Join us to explore more possibilities of Agent-based development:
 
-- [中文 README](README.md)
-- [Design Docs (CN)](assets/CN/skills.md) \| [Debugger](assets/CN/debugger.md) \| [Analysis](assets/CN/analysis.md)
-- [English Docs](assets/EN/skills.md) \| [Debugger](assets/EN/debugger.md) \| [Analysis](assets/EN/analysis.md)
-- [LICENSE](LICENSE) (MIT)
+- **QQ Group**: 1032235086
+
+Looking forward to your participation — let's push the evolution of Agent-based development infrastructure together!

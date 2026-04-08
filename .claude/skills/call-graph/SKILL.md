@@ -1,64 +1,64 @@
 ---
 name: call-graph
-description: Generate a function call tree for Python projects to visualize execution flow and code structure. MUST trigger in the following scenarios: the user wants to understand code execution flow, trace function calls, analyze call chains, visualize code flow, find entry points, or debug complex execution paths; the user mentions "call graph", "call tree", "function trace", "execution flow", "call chain", "how does this code run?", "what functions are called?", "trace", "调用图", "调用树", "函数追踪", "执行流程".
+description: 为Python项目生成函数调用树，可视化执行流程和代码结构。务必在以下场景触发：用户想了解代码执行流程、追踪函数调用、分析调用链、可视化代码流、查找入口点、调试复杂执行路径；用户提到"调用图"、"调用树"、"函数追踪"、"执行流程"、"调用链"、"代码是怎么运行的"、"有哪些函数被调用了"、"分析代码结构"、"trace"、"call graph"、"call tree"、"function trace"。
 ---
 
-# Python Function Call Graph Generator
+# Python 函数调用图生成器
 
-This skill uses `trace_call_tree.py` to trace Python function calls via `sys.setprofile` and output a structured call tree, helping you quickly understand project execution flow.
+本技能使用 `trace_call_tree.py` 通过 `sys.setprofile` 追踪 Python 函数调用，输出结构化的调用树，帮助快速理解项目执行流程。
 
-## When to Use
+## 适用场景
 
-- Understanding an unfamiliar codebase's execution flow
-- Analyzing which functions a specific entry point calls
-- Debugging complex call chains
-- Comparing actual runtime call paths vs. static code structure
-- Verifying that refactored code follows expected execution paths
+- 理解陌生代码库的执行流程
+- 分析某个入口点调用了哪些函数
+- 调试复杂的调用链
+- 对比实际运行时调用路径与静态代码结构的差异
+- 验证重构后的代码是否遵循预期的执行路径
 
-## How It Works
+## 工作原理
 
-The tracer uses Python's `sys.setprofile` hook to capture every function call/return at runtime. It filters out standard library and third-party calls, retaining only **project-internal** calls, then formats them into an indented tree.
+追踪器使用 Python 的 `sys.setprofile` 钩子在运行时捕获每一次函数调用和返回。它会过滤掉标准库和第三方库的调用，只保留**项目内部**的调用，然后格式化为缩进树形结构。
 
-## Quick Usage
+## 使用方法
 
 ```bash
-# Basic: trace from main() in a script
-python .claude/skills-EN/call-graph/scripts/trace_call_tree.py \
+# 基本用法：从 main() 开始追踪
+python .claude/skills/call-graph/scripts/trace_call_tree.py \
   --entry path/to/script.py \
   --project-root path/to/project
 
-# Specify a different entry function
-python .claude/skills-EN/call-graph/scripts/trace_call_tree.py \
+# 指定其他入口函数
+python .claude/skills/call-graph/scripts/trace_call_tree.py \
   --entry path/to/script.py \
   --main-func run_server \
   --project-root path/to/project
 
-# Trace module-level code (no main function needed)
-python .claude/skills-EN/call-graph/scripts/trace_call_tree.py \
+# 追踪模块级代码（无需 main 函数）
+python .claude/skills/call-graph/scripts/trace_call_tree.py \
   --entry path/to/script.py \
   --module-exec \
   --project-root path/to/project
 
-# Custom output path
-python .claude/skills-EN/call-graph/scripts/trace_call_tree.py \
+# 自定义输出路径
+python .claude/skills/call-graph/scripts/trace_call_tree.py \
   --entry path/to/script.py \
   --output my_call_tree.log
 ```
 
-## Parameters
+## 参数说明
 
-| Parameter | Required | Default | Description |
+| 参数 | 必填 | 默认值 | 说明 |
 |---|---|---|---|
-| `--entry` | Yes | - | Path to the Python entry file |
-| `--main-func` | No | `main` | Entry function name to start tracing from |
-| `--project-root` | No | `.` | Project root used to filter internal calls |
-| `--output` | No | `call_tree.log` | Output log file path |
-| `--module-exec` | No | `false` | Trace module-level code without requiring a main() function |
-| `--` separator | No | - | Arguments after `--` are forwarded to the entry script |
+| `--entry` | 是 | - | Python 入口文件路径 |
+| `--main-func` | 否 | `main` | 入口函数名称 |
+| `--project-root` | 否 | `.` | 项目根目录，用于过滤内部调用 |
+| `--output` | 否 | `call_tree.log` | 输出日志文件路径 |
+| `--module-exec` | 否 | `false` | 追踪模块级代码，无需 main() 函数 |
+| `--` 分隔符 | 否 | - | `--` 之后的参数会转发给入口脚本 |
 
-## Output Format
+## 输出格式
 
-The output is an indented tree showing function names with call counts:
+输出为缩进树形结构，显示函数名称和调用次数：
 
 ```
 ├── module.py:main [count=1]
@@ -68,24 +68,24 @@ The output is an indented tree showing function names with call counts:
 │   └── module.py:write_output [count=1]
 ```
 
-Each node shows:
-- **File path** relative to project root
-- **Function/method name** (including class name for methods, e.g. `MyClass.my_method`)
-- **Call count** — how many times this function was invoked from its parent
+每个节点显示：
+- **文件路径**（相对于项目根目录）
+- **函数/方法名**（包含类名，如 `MyClass.my_method`）
+- **调用次数** — 该函数在其父节点中被调用的次数
 
-## Workflow
+## 执行流程
 
-When the user asks to trace or understand code execution flow:
+当用户要求追踪或理解代码执行流程时：
 
-1. **Identify the entry point** — find the `main()` function or relevant entry script in the project.
-2. **Determine project root** — use the top-level project directory so the tracer correctly filters internal vs. external calls.
-3. **Run the tracer** — execute `trace_call_tree.py` with appropriate parameters. If the target script requires arguments, pass them after `--`.
-4. **Read and present the output** — read the generated `call_tree.log` file and explain the execution structure to the user.
-5. **Analyze** — highlight key call chains, hot paths (high count values), and any unexpected patterns.
+1. **确定入口点** — 找到项目中的 `main()` 函数或相关入口脚本。
+2. **确定项目根目录** — 使用项目顶层目录，确保追踪器正确过滤内部与外部调用。
+3. **运行追踪器** — 使用合适的参数执行 `trace_call_tree.py`。如果目标脚本需要参数，在 `--` 之后传入。
+4. **读取并展示输出** — 读取生成的 `call_tree.log` 文件，向用户解释执行结构。
+5. **分析** — 高亮关键调用链、热点路径（高调用次数）以及任何异常模式。
 
-## Important Notes
+## 注意事项
 
-- The tracer captures **runtime** calls, so code paths not executed (e.g., error handlers that don't trigger) won't appear in the tree.
-- The `--module-exec` flag is useful for scripts that run logic at module level rather than through a `main()` function.
-- The tracer filters out calls from `site-packages/`, `dist-packages/`, and virtual environment directories (`env/`, `venv/`, `.venv/`).
-- For multi-threaded code, the tracer profiles all threads and merges results into a single tree.
+- 追踪器捕获的是**运行时**调用，未被执行到的代码路径（如未触发的异常处理）不会出现在调用树中。
+- `--module-exec` 标志适用于在模块级别运行逻辑而非通过 `main()` 函数的脚本。
+- 追踪器会过滤掉 `site-packages/`、`dist-packages/` 以及虚拟环境目录（`env/`、`venv/`、`.venv/`）中的调用。
+- 对于多线程代码，追踪器会对所有线程进行 profile 并将结果合并到同一棵调用树中。

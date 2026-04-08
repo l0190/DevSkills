@@ -1,40 +1,20 @@
-## Skill结构
-- skill本质上是一个存放脚本,文档和assets的文件夹
+**简体中文** | [English](README_EN.md)
 
-``` bash
-  skill-name/
-  ├── SKILL.md          # 必须,主文件
-  ├── scripts/          # 可选,可执行脚本(首选bash)
-  │   ├── process_data.py
-  │   └── validate.sh
-  ├── references/       # 可选,按需加载的文档
-  │   ├── api-guide.md
-  │   └── examples/
-  └── assets/           # 可选,模板、字体、图标等
-      └── template.md
-```
+# 开发基础设施Agent化
 
-## Skills迁移方式
-迁移方式:将skill移动到AI编程工具对应的skills存放目录下
+本仓库致力于构建 **开发基础设施Agent化**，探索如何将 LLM 驱动的智能 Agent 深度融入软件开发的各个环节。我们通过可复用的 Skills（技能插件）将最佳实践沉淀为标准化工具，让 AI Agent 能够像资深工程师一样观察、判断、决策和执行，真正实现开发流程的智能化。
 
-| 工具       | Skills 存放目录        |
-| ------------ | -------------------- |
-| ClaudeCode | `.claude/skills/`  |
-| OpenCode   | `opencode/skills/` |
-| Copilot    | `.github/skills`   |
+## 已发布的 Skills
 
-## 已有Skills
+| Skill | 说明 | 设计文档 | Skill 入口 |
+| --- | --- | --- | --- |
+| OODA-debugger | 基于 OODA 循环的 LLM 自动化调试技能，通过"观察→判断→决策→执行"闭环定位并修复 Bug | [中文](assets/CN/debugger.md) \| [English](assets/EN/debugger.md) | [链接](.claude/skills/OODA-debugger/) |
+| call-graph | Python 函数调用树生成工具，可视化执行流程和代码结构 | [中文](assets/CN/skills.md) \| [English](assets/EN/skills.md) | [链接](.claude/skills/call-graph/) |
 
-| Skill | 说明 | 链接 |
-| ------------ | -------------------- | ---- |
-| OODA-debugger | 基于OODA循环的LLM自动化调试技能 | [中文版](.claude/skills-CN/OODA-debugger/) \| [English](.claude/skills/OODA-debugger/) |
-| call-graph | Python函数调用树生成工具 | [中文版](.claude/skills-CN/call-graph/) \| [English](.claude/skills/call-graph/) |
+## 加入社区
 
-## 相关文档
+我们有一个活跃的交流群，欢迎加入一起探讨 Agent 化开发的更多可能性：
 
-- [English README](README_EN.md)
-- [设计文档(中文)](assets/CN/skills.md)
-- [Debugger设计原理(中文)](assets/CN/debugger.md)
-- [软件系统分析方法(中文)](assets/CN/analysis.md)
-- [English Docs](assets/EN/skills.md) \| [Debugger](assets/EN/debugger.md) \| [Analysis](assets/EN/analysis.md)
-- [LICENSE](LICENSE) (MIT)
+- **QQ 群**: 1032235086
+
+期待你的加入，一起推动开发基础设施Agent化的演进！
