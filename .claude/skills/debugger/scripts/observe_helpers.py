@@ -1,310 +1,246 @@
 """
-OJDE Debugger - 观察辅助工具集
+OJDE Debugger - 装饰器式观察工具集
 
-提供多种观察手段，供 OJDE 循环的 Observe 阶段使用。
-使用方式：在需要观察的代码位置导入并调用相应函数。
+零侵入插桩，装饰器挂在函数定义上即可。调试完成后移除装饰器即清理完毕。
 
-用法示例:
-    from observe_helpers import snapshot, trace_call, watch_expr, type_check
+用法:
+    from observe_helpers import observe, type_check, boundary_check, watch, dataflow, snapshot
 
-    # 变量快照
-    snapshot(my_var, "my_var", depth=2)
+    @observe(iteration=1)
+    def process(data):
+        return transform(data)
 
-    # 条件观察
-    watch_expr(lambda: my_list[i] > threshold, f"list[{i}]={my_list[i]}", iteration=1)
+    @type_check(expected_input=dict, expected_return=dict, iteration=1)
+    def merge(a, b):
+        return {**a, **b}
 
-    # 类型检查
-    type_check(obj, "obj", expected=(list, tuple))
+    @boundary_check("items", index_arg="idx", iteration=1)
+    def get_at(items, idx):
+        return items[idx]
+
+    @watch(lambda r: r > 100, "result > 100", iteration=1)
+    def compute(x):
+        return x * 2
+
+    @dataflow("result", iteration=1)
+    def pipeline(raw, _snapshot=None):
+        step1 = _snapshot(raw / 2, "half")
+        return step1 * 3
+
+    snapshot(my_var, "my_var", iteration=1)  # 内联场景
 """
 
-import json
+import inspect
 import time
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional, Tuple
 
 
 # ============================================================================
-# 变量快照
+# 内部工具
 # ============================================================================
 
-def snapshot(
-    var: Any,
-    name: str,
-    *,
-    max_len: int = 100,
-    tag: str = "OBSERVE",
-    iteration: int = 0,
-) -> None:
-    """记录变量在当前时刻的完整状态。
-
-    Args:
-        var: 要记录的变量
-        name: 变量名（用于日志标识）
-        max_len: 列表/字符串的最大显示长度
-        tag: 日志前缀标签
-        iteration: 当前 OJDE 迭代号
-    """
+def _log(tag, iteration, kind, message):
     ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
-    info: dict[str, object] = {
-        "name": name,
-        "type": type(var).__name__,
-        "value": _safe_repr(var, max_len=max_len),
-    }
-
-    # 类型特定信息
-    if hasattr(var, "shape"):
-        info["shape"] = str(var.shape)
-    if hasattr(var, "dtype"):
-        info["dtype"] = str(var.dtype)
-    if isinstance(var, (list, tuple, set, dict, str, bytes)):
-        info["len"] = int(len(var))
-
-    print(f"[{tag}] {ts} | iter#{iteration} | SNAPSHOT: {json.dumps(info, ensure_ascii=False)}")
+    print(f"[{tag}] {ts} | iter#{iteration} | {kind}: {message}")
 
 
-# ============================================================================
-# 条件观察（只在条件满足时输出）
-# ============================================================================
+def _safe_repr(obj, max_len=200):
+    try:
+        r = repr(obj)
+        return r if len(r) <= max_len else f"{r[:max_len]}... (len={len(r)})"
+    except Exception:
+        return f"<{type(obj).__name__} (repr failed)>"
 
-def watch_expr(
-    condition: Any,
-    expr_desc: str,
-    *,
-    tag: str = "OBSERVE",
-    iteration: int = 0,
-    once: bool = True,
-    _counter: dict = {},  # type: ignore
-) -> bool:
-    """条件观察：只在 condition 为真时输出日志。
 
-    Args:
-        condition: 布尔值或可调用对象，为真时输出
-        expr_desc: 条件的表达式描述
-        tag: 日志前缀
-        iteration: OJDE 迭代号
-        once: 是否只触发一次（同一 expr_desc）
-    """
-    cond_val = condition() if callable(condition) else condition
+def _resolve_args(fn, args, kwargs):
+    """将 *args/**kwargs 解析为 {参数名: 值} 的字典。"""
+    sig = inspect.signature(fn)
+    bound = sig.bind(*args, **kwargs)
+    bound.apply_defaults()
+    return bound.arguments
 
-    if cond_val:
-        key = f"{expr_desc}:{iteration}"
-        if once and _counter.get(key, 0) >= 1:
-            return False
-        _counter[key] = _counter.get(key, 0) + 1
 
-        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(f"[{tag}] {ts} | iter#{iteration} | WATCH: {expr_desc} → TRUE")
-        return True
-
-    return False
+def _try_len(obj):
+    try:
+        return len(obj)
+    except Exception:
+        return None
 
 
 # ============================================================================
-# 函数追踪装饰器
+# observe — 函数追踪
 # ============================================================================
 
-def trace_call(
-    tag: str = "OBSERVE",
-    iteration: int = 0,
-    log_args: bool = True,
-    log_return: bool = True,
-    log_duration: bool = True,
-    max_repr_len: int = 200,
-):
-    """函数追踪装饰器：记录函数调用的参数、返回值和耗时。
-
-    Args:
-        tag: 日志前缀
-        iteration: OJDE 迭代号
-        log_args: 是否记录参数
-        log_return: 是否记录返回值
-        log_duration: 是否记录耗时
-        max_repr_len: 参数/返回值的最大显示长度
-    """
-    def decorator(func):
-        @wraps(func)
+def observe(func=None, iteration=0, tag="OBSERVE"):
+    """追踪函数调用：记录参数、返回值、耗时。"""
+    def decorator(fn):
+        @wraps(fn)
         def wrapper(*args, **kwargs):
-            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
-            if log_args:
-                args_str = ", ".join(
-                    _safe_repr(a, max_len=max_repr_len) for a in args
-                )
-                kwargs_str = ", ".join(
-                    f"{k}={_safe_repr(v, max_len=max_repr_len)}" for k, v in kwargs.items()
-                )
-                all_args = ", ".join(filter(None, [args_str, kwargs_str]))
-                print(f"[{tag}] {ts} | iter#{iteration} | CALL {func.__name__}({all_args})")
+            parts = [_safe_repr(a) for a in args] + [f"{k}={_safe_repr(v)}" for k, v in kwargs.items()]
+            _log(tag, iteration, "CALL", f"{fn.__name__}({', '.join(parts)})")
 
             start = time.perf_counter()
-            result = func(*args, **kwargs)
-            elapsed = time.perf_counter() - start
+            result = fn(*args, **kwargs)
+            elapsed_ms = (time.perf_counter() - start) * 1000
 
-            ts2 = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
-            parts = [f"RETURN {func.__name__}"]
-            if log_return:
-                parts.append(f"→ {_safe_repr(result, max_len=max_repr_len)}")
-            if log_duration:
-                parts.append(f"({elapsed*1000:.1f}ms)")
-
-            print(f"[{tag}] {ts2} | iter#{iteration} | {' '.join(parts)}")
+            _log(tag, iteration, "CALL", f"RETURN {fn.__name__} -> {_safe_repr(result)} ({elapsed_ms:.1f}ms)")
             return result
         return wrapper
+
+    if func is not None:
+        return decorator(func)
     return decorator
 
 
 # ============================================================================
-# 类型检查
+# type_check — 类型检查
 # ============================================================================
 
-def type_check(
-    var: Any,
-    name: str,
-    expected: Optional[Tuple[type, ...]] = None,
-    *,
-    tag: str = "OBSERVE",
-    iteration: int = 0,
-) -> bool:
-    """检查变量类型，记录类型信息。
+def type_check(func=None, expected_input=None, expected_return=None, iteration=0, tag="OBSERVE"):
+    """检查函数参数和返回值的类型，自动检测 None 参数。"""
+    def _norm(t):
+        if t is None:
+            return None
+        return t if isinstance(t, tuple) else (t,)
 
-    Args:
-        var: 要检查的变量
-        name: 变量名
-        expected: 期望的类型元组，如果不符合会额外标记
-        tag: 日志前缀
-        iteration: OJDE 迭代号
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            resolved = _resolve_args(fn, args, kwargs)
 
-    Returns:
-        True 如果类型符合预期（或未指定预期）
-    """
-    actual_type = type(var)
-    matches = expected is None or isinstance(var, expected)
-    status = "OK" if matches else "MISMATCH"
+            none_names = [k for k, v in resolved.items() if v is None]
+            if none_names:
+                _log(tag, iteration, "TYPE_CHECK", f"{fn.__name__}: None in {none_names}")
 
-    info: dict[str, object] = {
-        "name": name,
-        "actual": actual_type.__name__,
-        "status": status,
-    }
-    if expected:
-        info["expected"] = [t.__name__ for t in expected]
-    if var is None:
-        info["warning"] = "Variable is None!"
+            exp_in = _norm(expected_input)
+            if exp_in:
+                mismatched = [f"{k}={type(v).__name__}" for k, v in resolved.items() if not isinstance(v, exp_in)]
+                status = "OK" if not mismatched else f"MISMATCH: {', '.join(mismatched)}"
+                _log(tag, iteration, "TYPE_CHECK", f"{fn.__name__} args: {status}")
 
-    ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    print(f"[{tag}] {ts} | iter#{iteration} | TYPE_CHECK: {json.dumps(info, ensure_ascii=False)}")
-    return matches
+            result = fn(*args, **kwargs)
 
+            exp_out = _norm(expected_return)
+            if exp_out:
+                names = "/".join(t.__name__ for t in exp_out)
+                ok = "OK" if isinstance(result, exp_out) else f"MISMATCH: got {type(result).__name__}, expected {names}"
+                _log(tag, iteration, "TYPE_CHECK", f"{fn.__name__} return: {ok}")
 
-# ============================================================================
-# 边界检查
-# ============================================================================
+            return result
+        return wrapper
 
-def boundary_check(
-    index: int,
-    container_len: int,
-    index_name: str = "index",
-    container_name: str = "container",
-    *,
-    tag: str = "OBSERVE",
-    iteration: int = 0,
-) -> bool:
-    """检查索引是否在容器范围内。
-
-    Args:
-        index: 索引值
-        container_len: 容器长度
-        index_name: 索引变量名
-        container_name: 容器变量名
-        tag: 日志前缀
-        iteration: OJDE 迭代号
-
-    Returns:
-        True 如果索引在合法范围内
-    """
-    valid = 0 <= index < container_len
-    status = "OK" if valid else "OUT_OF_RANGE"
-
-    info = {
-        "index": index,
-        "range": f"[0, {container_len})",
-        "status": status,
-        "vars": f"{index_name}[{index}] in {container_name}(len={container_len})",
-    }
-
-    ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    print(f"[{tag}] {ts} | iter#{iteration} | BOUNDARY: {json.dumps(info, ensure_ascii=False)}")
-    return valid
+    if func is not None:
+        return decorator(func)
+    return decorator
 
 
 # ============================================================================
-# 数据流记录
+# boundary_check — 边界检查
 # ============================================================================
 
-class DataFlowLogger:
-    """记录变量在多个位置的变化，用于追踪数据流。
+def boundary_check(container_arg, index_arg=None, iteration=0, tag="OBSERVE"):
+    """检查容器索引是否越界。"""
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            resolved = _resolve_args(fn, args, kwargs)
+            container = resolved.get(container_arg)
+            if container is None:
+                return fn(*args, **kwargs)
 
-    用法:
-        dfl = DataFlowLogger("result", iteration=1)
-        dfl.log("after_step1", result)
-        dfl.log("after_step2", result)
-        dfl.log("after_step3", result)
-        dfl.summary()  # 打印对比摘要
-    """
+            clen = _try_len(container)
+            msg = f"{fn.__name__}: {container_arg}.len={clen}"
 
-    def __init__(self, var_name: str, iteration: int = 0, tag: str = "OBSERVE"):
-        self.var_name = var_name
-        self.iteration = iteration
-        self.tag = tag
-        self.records = []
+            if index_arg:
+                idx = resolved.get(index_arg)
+                if idx is not None:
+                    valid = 0 <= idx < clen
+                    msg += f", {index_arg}={idx}, {'OK' if valid else 'OUT_OF_RANGE'}"
+                    _log(tag, iteration, "BOUNDARY", msg)
 
-    def log(self, stage: str, value: Any) -> None:
-        """在某个阶段记录变量值。"""
-        self.records.append({
-            "stage": stage,
-            "value": _safe_repr(value),
-            "type": type(value).__name__,
-            "len": len(value) if hasattr(value, "__len__") else None,
-        })
-        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(
-            f"[{self.tag}] {ts} | iter#{self.iteration} | "
-            f"DATAFLOW {self.var_name}@{stage} = {_safe_repr(value)}"
-        )
+            return fn(*args, **kwargs)
+        return wrapper
 
-    def summary(self) -> None:
-        """打印所有阶段的对比摘要。"""
-        if len(self.records) < 2:
-            print(f"[{self.tag}] DATAFLOW {self.var_name}: 只有一个记录点，无法对比")
-            return
-
-        print(f"\n[{self.tag}] === DataFlow Summary: {self.var_name} ===")
-        for r in self.records:
-            print(f"  {r['stage']}: {r['value']} (type={r['type']}, len={r['len']})")
-
-        # 检测变化
-        for i in range(1, len(self.records)):
-            prev = self.records[i - 1]
-            curr = self.records[i]
-            changed = prev["value"] != curr["value"]
-            marker = "CHANGED" if changed else "UNCHANGED"
-            print(f"  {prev['stage']} → {curr['stage']}: {marker}")
-        print(f"[{self.tag}] === End Summary ===\n")
+    return decorator
 
 
 # ============================================================================
-# 内部工具函数
+# watch — 条件观察
 # ============================================================================
 
-def _safe_repr(obj: Any, max_len: int = 200) -> str:
-    """安全地将对象转换为字符串表示，避免过长或递归。"""
-    try:
-        r = repr(obj)
-        if len(r) > max_len:
-            r = r[:max_len] + f"... (truncated, total {len(r)} chars)"
-        return r
-    except Exception:
-        return f"<{type(obj).__name__} (repr failed)>"
+def watch(condition, desc="", arg_name=None, iteration=0, tag="OBSERVE"):
+    """条件观察：只在 condition 为 True 时输出日志。默认对返回值求值。"""
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            result = fn(*args, **kwargs)
+
+            target = result
+            if arg_name:
+                resolved = _resolve_args(fn, args, kwargs)
+                target = resolved.get(arg_name, result)
+
+            if condition(target):
+                _log(tag, iteration, "WATCH", f"{fn.__name__}: {desc or 'TRUE'} (value={_safe_repr(target)})")
+
+            return result
+        return wrapper
+
+    return decorator
+
+
+# ============================================================================
+# dataflow — 数据流追踪
+# ============================================================================
+
+def dataflow(label, iteration=0, tag="OBSERVE"):
+    """追踪函数内变量的变化。被装饰函数需声明 _snapshot=None 参数。"""
+    def decorator(fn):
+        has_snapshot_param = "_snapshot" in inspect.signature(fn).parameters
+
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            records = []
+
+            def _snapshot(value, stage=""):
+                records.append({"stage": stage or f"step{len(records) + 1}", "value": _safe_repr(value), "type": type(value).__name__, "len": _try_len(value)})
+                return value
+
+            if has_snapshot_param:
+                kwargs.setdefault("_snapshot", _snapshot)
+
+            result = fn(*args, **kwargs)
+
+            if not records:
+                return result
+
+            _log(tag, iteration, "DATAFLOW", f"--- {label} ({fn.__name__}) ---")
+            for r in records:
+                _log(tag, iteration, "DATAFLOW", f"  {r['stage']}: {r['value']} (type={r['type']}, len={r['len']})")
+
+            for i in range(1, len(records)):
+                prev, curr = records[i - 1], records[i]
+                changed = "CHANGED" if prev["value"] != curr["value"] else "UNCHANGED"
+                _log(tag, iteration, "DATAFLOW", f"  {prev['stage']} -> {curr['stage']}: {changed}")
+
+            _log(tag, iteration, "DATAFLOW", f"--- END {label} ---")
+            return result
+        return wrapper
+
+    return decorator
+
+
+# ============================================================================
+# snapshot — 独立快照（内联场景）
+# ============================================================================
+
+def snapshot(var, name, iteration=0, tag="OBSERVE"):
+    """记录变量当前状态。用于装饰器不方便的内联场景。"""
+    parts = [f"name={name}", f"type={type(var).__name__}", f"value={_safe_repr(var)}"]
+    length = _try_len(var)
+    if length is not None:
+        parts.append(f"len={length}")
+    if hasattr(var, "shape"):
+        parts.append(f"shape={var.shape}")
+    _log(tag, iteration, "SNAPSHOT", ", ".join(parts))

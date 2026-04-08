@@ -1,5 +1,5 @@
 ---
-name: ojde-debugger
+name: debugger
 description: >-
   基于OJDE循环(Observed-Judge-Decide-Execute)的LLM驱动自动化调试技能。通过"观察→判断→决策→执行"的闭环循环定位并修复代码Bug，每次决策都有具体的观察依据支撑，并生成完整的调试报告。
   务必在以下场景触发：用户提到"debug"、"调试"、"有bug"、"运行出错了"、"测试失败了"、"程序异常"、"排查问题"、"定位问题"、"结果不对"、"不一致"、"崩溃"；
@@ -34,22 +34,22 @@ flowchart LR
 | Step 2: OJDE 循环 | `references/step2-ojde-loop/observe.md` `references/step2-ojde-loop/judge.md` `references/step2-ojde-loop/decide.md` `references/step2-ojde-loop/execute.md` |
 | Step 3: 生成调试报告 | `references/step3-debug-report/guide.md` |
 
-**Observe 可用工具**（`scripts/observe_helpers.py`）：
+**Observe 装饰器**（`scripts/observe_helpers.py`）：
 
-| 函数 | 用途 | 示例 |
-|------|------|------|
-| `snapshot(var, name)` | 变量快照 | `snapshot(result, "result")` |
-| `type_check(var, name, expected=...)` | 类型检查 | `type_check(config, "config", expected=dict)` |
-| `boundary_check(i, len(lst))` | 边界检查 | `boundary_check(idx, len(items))` |
-| `trace_call(iteration=N)` | 函数追踪装饰器 | `@trace_call(iteration=1)` |
-| `watch_expr(cond, desc)` | 条件观察 | `watch_expr(lambda: i > 0, "i>0")` |
-| `DataFlowLogger(name)` | 数据流追踪 | 见 observe.md |
+| 装饰器 | 用途 | 示例 |
+|--------|------|------|
+| `@observe` | 追踪函数调用 | `@observe(iteration=1)` |
+| `@type_check` | 检查参数/返回值类型 | `@type_check(expected_input=dict, iteration=1)` |
+| `@boundary_check` | 检查索引越界 | `@boundary_check("items", index_arg="i", iteration=1)` |
+| `@watch` | 条件满足时输出 | `@watch(lambda x: x > 0, "x>0")` |
+| `@dataflow` | 追踪函数内变量变化 | `@dataflow("result", iteration=1)` |
+| `snapshot()` | 独立快照（内联用） | `snapshot(var, "var", iteration=1)` |
 
 ## 快速参考：观察手段选型
 
-- **IndexError/越界** → `boundary_check()` + 记录 `len()` 和索引值
-- **TypeError/AttributeError** → `type_check()` + 检查变量是否为 None
-- **逻辑错误/值不对** → `snapshot()` + `DataFlowLogger` 追踪中间值
+- **IndexError/越界** → `@boundary_check` 自动检查容器长度和索引
+- **TypeError/AttributeError** → `@type_check` 检查参数类型 + 自动检测 None
+- **逻辑错误/值不对** → `@dataflow` + `_snapshot()` 追踪中间值
 - **最近改动引入** → `git diff` / `git blame`
 - **回归 bug** → `git bisect` / `git log -L`
 
