@@ -11,10 +11,3 @@
 | OODA-debugger | 基于 OODA 循环的 LLM 自动化调试技能，通过"观察→判断→决策→执行"闭环定位并修复 Bug | [中文](assets/CN/debugger.md) \| [English](assets/EN/debugger.md) | [链接](.claude/skills/OODA-debugger/) |
 | call-graph | Python 函数调用树生成工具，可视化执行流程和代码结构 | [中文](assets/CN/skills.md) \| [English](assets/EN/skills.md) | [链接](.claude/skills/call-graph/) |
 
-## 加入社区
-
-我们有一个活跃的交流群，欢迎加入一起探讨 Agent 化开发的更多可能性：
-
-- **QQ 群**: 1032235086
-
-期待你的加入，一起推动开发基础设施Agent化的演进！
