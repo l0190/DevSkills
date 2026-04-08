@@ -3,4 +3,6 @@ Context
 Harness
 Software
 
+.claude/settings.local.json
+.github/
 **/__pycache__

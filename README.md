@@ -22,3 +22,19 @@
 | ClaudeCode | `.claude/skills/`  |
 | OpenCode   | `opencode/skills/` |
 | Copilot    | `.github/skills`   |
+
+## 已有Skills
+
+| Skill | 说明 | 链接 |
+| ------------ | -------------------- | ---- |
+| OODA-debugger | 基于OODA循环的LLM自动化调试技能 | [中文版](.claude/skills-CN/OODA-debugger/) \| [English](.claude/skills/OODA-debugger/) |
+| call-graph | Python函数调用树生成工具 | [中文版](.claude/skills-CN/call-graph/) \| [English](.claude/skills/call-graph/) |
+
+## 相关文档
+
+- [English README](README_EN.md)
+- [设计文档(中文)](assets/CN/skills.md)
+- [Debugger设计原理(中文)](assets/CN/debugger.md)
+- [软件系统分析方法(中文)](assets/CN/analysis.md)
+- [English Docs](assets/EN/skills.md) \| [Debugger](assets/EN/debugger.md) \| [Analysis](assets/EN/analysis.md)
+- [LICENSE](LICENSE) (MIT)
